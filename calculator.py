@@ -40,18 +40,60 @@ To submit your homework:
 
 
 """
-
+import traceback
+from loguru import logger
+import math
 
 def add(*args):
     """ Returns a STRING with the sum of the arguments """
+    sum = 0
+    for arg in args:
+        sum += int(arg)
 
-    # TODO: Fill sum with the correct value, based on the
-    # args provided.
-    sum = "0"
-
-    return sum
+    return str(sum)
 
 # TODO: Add functions for handling more arithmetic operations.
+
+def subtract(*args):
+    """ Returns a STRING with the dif of the arguments """
+    args = list(map(int, args))
+    result = args[0]- args[1]
+
+    return str(result)
+
+def multiply(*args):
+    args = list(map(int, args))
+    #result = math.prod(args) does not work dont know why ERROR "AttributeError: module 'math' has no attribute 'prod'"
+    result = 1
+    for i in args:
+        result = result * i
+    return str(result)
+
+def divided(*args):
+    result = 0
+    args = list(map(int, args))
+    result = args[0] / args[1]
+    return str(result)
+
+def root():
+    page = """
+    <h1>Instructions</h1>
+    <p>Choose 2 numbers to:
+    <ul>
+    <li>add</li>
+    <li>subtract</li>
+    <li>divide</li>
+    <li>multiply</li>
+    </ul>
+    By using this format in the URL: <br/>
+    hostname/action/first number/second number <br/>
+    For example: <br/>
+    http://localhost:8080/add/23/42 
+    
+    </p>
+
+    """
+    return page
 
 def resolve_path(path):
     """
@@ -63,8 +105,21 @@ def resolve_path(path):
     # examples provide the correct *syntax*, but you should
     # determine the actual values of func and args using the
     # path.
-    func = add
-    args = ['25', '32']
+    funcs = {
+        '': root,
+        'add': add,
+        'subtract': subtract,
+        'multiply': multiply,
+        'divide': divided
+    }
+    path  = path.strip("/").split("/")
+    func_name = path[0]
+
+    args= path[1:]
+    try:
+        func = funcs[func_name]
+    except KeyError:
+        raise NameError
 
     return func, args
 
@@ -73,12 +128,33 @@ def application(environ, start_response):
     # work here as well! Remember that your application must
     # invoke start_response(status, headers) and also return
     # the body of the response in BYTE encoding.
-    #
+    headers = [('Content-type', 'text/html')]
+    try:
+        path = environ.get('PATH_INFO', None)
+        if path is None:
+            raise NameError
+        func, args = resolve_path(path)
+        print(func)
+        body = func(*args)
+
+        status = "200 OK"
+    except NameError:
+        status = "404 Not Found"
+        body = "<h1> Not Found</h1>"
+    except Exception:
+        status = "500 Internal Server Error"
+        body = "<h1>Internal Server Error</h1>"
+        print(traceback.format_exc())
+    finally:
+        headers.append(('Content-length', str(len(body))))
+        start_response(status, headers)
+        return [body.encode('utf8')]
+
     # TODO (bonus): Add error handling for a user attempting
     # to divide by zero.
-    pass
+
 
 if __name__ == '__main__':
-    # TODO: Insert the same boilerplate wsgiref simple
-    # server creation that you used in the book database.
-    pass
+    from wsgiref.simple_server import make_server
+    srv = make_server('localhost', 8080, application)
+    srv.serve_forever()
